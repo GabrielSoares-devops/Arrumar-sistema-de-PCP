@@ -1,0 +1,110 @@
+import psycopg2
+
+# Exemplo de comandos DDL para PostgreSQL
+# NOTA: Para executar isso, você precisaria de um banco de dados PostgreSQL acessível
+# e as credenciais de conexão.
+# Este código é apenas para demonstração do esquema.
+
+ddl_commands = [
+    """CREATE TABLE IF NOT EXISTS Clientes (
+        cliente_id SERIAL PRIMARY KEY,
+        nome_empresa VARCHAR(255) NOT NULL,
+        cnpj VARCHAR(18) UNIQUE,
+        endereco TEXT,
+        telefone VARCHAR(20),
+        email VARCHAR(255)
+    );""",
+    """CREATE TABLE IF NOT EXISTS Produtos (
+        produto_id SERIAL PRIMARY KEY,
+        nome_produto VARCHAR(255) NOT NULL,
+        descricao TEXT,
+        unidade_medida VARCHAR(50),
+        tipo_material VARCHAR(100),
+        espessura_padrao DECIMAL(10, 3) -- em mm
+    );""",
+    """CREATE TABLE IF NOT EXISTS Chapas_Estoque (
+        chapa_id SERIAL PRIMARY KEY,
+        produto_id INTEGER REFERENCES Produtos(produto_id),
+        numero_lote VARCHAR(100) NOT NULL,
+        dimensao_x DECIMAL(10, 3) NOT NULL, -- em mm
+        dimensao_y DECIMAL(10, 3) NOT NULL, -- em mm
+        peso DECIMAL(10, 3), -- em kg
+        localizacao_estoque VARCHAR(100),
+        quantidade_disponivel INTEGER NOT NULL DEFAULT 1,
+        data_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'Disponível'
+    );""",
+    """CREATE TABLE IF NOT EXISTS Maquinas_Oxicorte (
+        maquina_id SERIAL PRIMARY KEY,
+        nome_maquina VARCHAR(100) NOT NULL,
+        modelo VARCHAR(100),
+        capacidade TEXT,
+        status_operacional VARCHAR(50) DEFAULT 'Operacional'
+    );""",
+    """CREATE TABLE IF NOT EXISTS Pedidos_Venda (
+        pedido_id SERIAL PRIMARY KEY,
+        cliente_id INTEGER REFERENCES Clientes(cliente_id),
+        data_pedido TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        data_entrega_prevista DATE,
+        status_pedido VARCHAR(50) DEFAULT 'Pendente',
+        valor_total DECIMAL(15, 2)
+    );""",
+    """CREATE TABLE IF NOT EXISTS Itens_Pedido_Venda (
+        item_pedido_id SERIAL PRIMARY KEY,
+        pedido_id INTEGER REFERENCES Pedidos_Venda(pedido_id),
+        produto_id INTEGER REFERENCES Produtos(produto_id), -- Aqui seria o produto que é uma peça cortada
+        quantidade INTEGER NOT NULL,
+        preco_unitario DECIMAL(10, 2) NOT NULL
+    );""",
+    """CREATE TABLE IF NOT EXISTS Ordens_Producao (
+        ordem_producao_id SERIAL PRIMARY KEY,
+        pedido_id INTEGER REFERENCES Pedidos_Venda(pedido_id) ON DELETE SET NULL, -- Pode ser para estoque, não vinculado a pedido
+        data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        data_inicio_prevista DATE,
+        data_conclusao_prevista DATE,
+        data_conclusao_real DATE,
+        status_producao VARCHAR(50) DEFAULT 'Planejada',
+        maquina_id INTEGER REFERENCES Maquinas_Oxicorte(maquina_id),
+        chapa_utilizada_id INTEGER REFERENCES Chapas_Estoque(chapa_id)
+    );""",
+    """CREATE TABLE IF NOT EXISTS Pecas_Produzidas (
+        peca_id SERIAL PRIMARY KEY,
+        produto_id INTEGER REFERENCES Produtos(produto_id), -- O produto que esta peça representa
+        ordem_producao_id INTEGER REFERENCES Ordens_Producao(ordem_producao_id) ON DELETE CASCADE,
+        chapa_origem_id INTEGER REFERENCES Chapas_Estoque(chapa_id) ON DELETE SET NULL,
+        dimensao_x DECIMAL(10, 3),
+        dimensao_y DECIMAL(10, 3),
+        dimensao_z DECIMAL(10, 3),
+        peso DECIMAL(10, 3),
+        data_producao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        quantidade INTEGER NOT NULL,
+        status_qualidade VARCHAR(50) DEFAULT 'Pendente'
+    );"""
+]
+
+# O código abaixo mostra como você poderia se conectar e executar os comandos
+# Descomente e configure com suas credenciais para realmente criar as tabelas.
+
+ try:
+     conn = psycopg2.connect(
+         host="localhost",
+         database="your_db_name",
+         user="your_user",
+         password="your_password"
+     )
+     cur = conn.cursor()
+     for command in ddl_commands:
+         cur.execute(command)
+         print(f"Comando executado: {command[:50]}...")
+     conn.commit()
+     print("Todas as tabelas criadas com sucesso!")
+ except Exception as e:
+     print(f"Erro ao criar tabelas: {e}")
+ finally:
+     if 'conn' in locals() and conn:
+         cur.close()
+         conn.close()
+         print("Conexão PostgreSQL fechada.")
+
+print("Os comandos DDL foram definidos no array 'ddl_commands'.")
+print("Você pode copiá-los e executá-los em seu cliente PostgreSQL (pgAdmin, psql, etc.) ou via código Python com a biblioteca `psycopg2`.")
